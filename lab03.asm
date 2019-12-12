@@ -121,40 +121,74 @@ CSEG SEGMENT PARA PUBLIC "CODE"
 		mov cx, 2
 		loop_label:
 			imul bx
+			jo overflow_error_first
 			loop loop_label 
 		
-		mov x, ax ; x = 34 * (x ^ 2)
+		mov cx, ax ; x = 34 * (x ^ 2)
+
+		mov bx, x
 		mov ax, y
-		sub bx, dx
+		sub bx, ax
+		jo overflow_error_first
+
+		mov ax, y
 		imul bx
+		jo overflow_error_first
+		
+		xor dx, dx				
 		mov bx, ax
-		mov ax, x
+		mov ax, cx
+
 		idiv bx
-		ret
+		jmp exit_first	 	
+		overflow_error_first:
+			mov was_overflow, 1
+			xor dx, dx
+			lea dx, overflowError
+			call far ptr WRITING
+		exit_first:
+			ret
 	FIRST_ACTION ENDP
 
 	SECOND_ACTION PROC FAR	;( 1 - x ) / ( 1 + x ). [y = 0]
 		mov bx, x
 		add bx, 1
+		jo overflow_error_second
 		mov ax, x
 		neg ax
 		add ax, 1
+		jo overflow_error_second
 		idiv bx
-		ret
+		jmp exit_second
+		overflow_error_second:
+			mov was_overflow, 1
+			xor dx, dx
+			lea dx, overflowError
+			call far ptr WRITING
+		exit_second:
+			ret
 	SECOND_ACTION ENDP
 	
 	THIRD_ACTION PROC FAR ; (x ^ 2) * (y ^ 2). [y < 0]
 		mov ax, x
 		mov bx, x
-		idiv bx ; x ^ 2
-
+		imul bx ; x ^ 2
+		jo overflow_error_third
 		mov bx, y
 		xor cx, cx
 		mov cx, 2
 		label_loop_third:
 			imul bx
+			jo overflow_error_third
 			loop label_loop_third
-		ret
+		jmp exit_third
+		overflow_error_third:
+			mov was_overflow, 1
+			xor dx, dx
+			lea dx, overflowError
+			call far ptr WRITING
+		exit_third:
+			ret
 	THIRD_ACTION ENDP
 
 	ITOA PROC FAR
