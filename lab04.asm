@@ -27,7 +27,7 @@ DSEG SEGMENT PARA PUBLIC "DATA"
 
 	elements dw 20 dup (?)
 	twoDArr dw 25 dup (?)
-	n dw 0
+	len dw 0
 	i dw 0
 	j dw 0
 	tmp dw 0
@@ -63,13 +63,13 @@ CSEG SEGMENT PARA PUBLIC "CODE"
 		lea bx, buffer + 2
 		call far ptr ATOI
 		cmp was_overflow, 1
-		je foo
-		mov n, ax
-		cmp n, 1
-		jl foo1
-		cmp n, 20
-		jg foo1
-		mov ax, n
+		je jump_toEnd
+		mov len, ax
+		cmp len, 1
+		jl jump_toError
+		cmp len, 20
+		jg jump_toError
+		mov ax, len
 		mov i, ax
 
 		reading_loop:
@@ -82,8 +82,8 @@ CSEG SEGMENT PARA PUBLIC "CODE"
 			lea bx, buffer + 2
 			call far ptr ATOI
 			cmp was_overflow, 1
-			je foo
-			mov bx, n
+			je jump_toEnd
+			mov bx, len
 			sub bx, i
 			shl bx, 1
 			mov elements[bx], ax
@@ -92,13 +92,13 @@ CSEG SEGMENT PARA PUBLIC "CODE"
 	
 		lea dx, arrayStr
 		call far ptr WRITING
-		mov ax, n
+		mov ax, len
 		mov i, ax
 		jmp output_array
-		foo1: jmp error_main
-		foo: jmp end_main
+		jump_toError: jmp error_main
+		jump_toEnd: jmp end_main
 		output_array:
-			mov bx, n
+			mov bx, len
 			sub bx, i
 			shl bx, 1
 			mov ax, elements[bx]
@@ -115,7 +115,7 @@ CSEG SEGMENT PARA PUBLIC "CODE"
 		call far ptr WRITING
 		call far ptr ARRAY_SUM
 		cmp was_overflow, 1
-		je foo4
+		je jump_toEnd4
 		mov bx, sum
 		call far ptr ITOA
 		mov ax, 10
@@ -132,12 +132,12 @@ CSEG SEGMENT PARA PUBLIC "CODE"
 		lea dx, sortedStr
 		call far ptr WRITING
 		call far ptr ARRAY_SORT
-		mov ax, n
+		mov ax, len
 		mov i, ax
 		jmp output_array1
-		foo4: jmp foo3
+		jump_toEnd4: jmp jump_toEnd3
 		output_array1:
-			mov bx, n
+			mov bx, len
 			sub bx, i
 			shl bx, 1
 			mov ax, elements[bx]
@@ -170,26 +170,30 @@ CSEG SEGMENT PARA PUBLIC "CODE"
 		lea bx, xBuffer + 2
 		call far ptr ATOI
 		cmp was_overflow, 1
-		je foo3
+		je jump_toEnd3
 		mov x, ax
 
 		lea bx, yBuffer + 2
 		call far ptr ATOI
 		cmp was_overflow, 1
-		je foo3
+		je jump_toError3
 		mov y, ax
 		cmp x, 1
-		jl foo3
+		jl jump_toError3
 		cmp x, 5
-		jg foo3
+		jg jump_toError3
 		cmp y, 1
-		jl foo3
+		jl jump_toError3
 		cmp y, 5
-		jg foo3
+		jg jump_toError3
 
 		mov i, 0
 		jmp reading_2d_out
-		foo3: jmp foo2
+
+		jump_toEnd3: jmp jump_toEnd2
+		jump_toError3: jmp jump_toError2
+		
+
 		reading_2d_out:
 			mov j, 0
 			reading_2d_in:
@@ -212,7 +216,7 @@ CSEG SEGMENT PARA PUBLIC "CODE"
 				lea bx, buffer + 2
 				call far ptr ATOI
 				cmp was_overflow, 1
-				je foo2
+				je jump_toEnd2
 				mov tmp, ax
 				mov ax, i
 				mov bx, x
@@ -234,7 +238,8 @@ CSEG SEGMENT PARA PUBLIC "CODE"
 
 		mov i, 0
 		jmp writing_2d_out
-		foo2: jmp end_main
+		jump_toEnd2: jmp end_main
+		jump_toError2: jmp error_main
 		writing_2d_out:
 			mov j, 0
 			writing_2d_in:
@@ -322,12 +327,13 @@ CSEG SEGMENT PARA PUBLIC "CODE"
 	ENDP FIND_ELEM
 
 	ARRAY_SORT PROC FAR
-	out_loop_sort:
+		mov i, 0
+		out_loop_sort:
 		mov ax, i
 		mov min, ax
 		mov j, ax
 		inc j
-		mov ax, n
+		mov ax, len
 		cmp j, ax
 		jge sort_end
 		inner_loop_sort:
@@ -344,7 +350,7 @@ CSEG SEGMENT PARA PUBLIC "CODE"
 			skip_update:
 			inc j
 			mov ax, j
-			cmp ax, n
+			cmp ax, len
 			jl inner_loop_sort
 		mov bx, i
 		shl bx, 1
@@ -353,14 +359,12 @@ CSEG SEGMENT PARA PUBLIC "CODE"
 		shl bx, 1
 		mov cx, elements[bx]
 		mov dx, cx
-		mov bx, min
-		shl bx, 1
 		mov elements[bx], ax
 		mov bx, i
 		shl bx, 1
 		mov elements[bx], dx
 		inc i
-		mov ax, n
+		mov ax, len
 		cmp i, ax
 		jl out_loop_sort
 		sort_end:
@@ -368,10 +372,10 @@ CSEG SEGMENT PARA PUBLIC "CODE"
 	ENDP ARRAY_SORT
 
 	ARRAY_SUM PROC FAR
-		mov ax, n
+		mov ax, len
 		mov i, ax
 		sum_loop:
-			mov bx, n
+			mov bx, len
 			sub bx, i
 			shl bx, 1
 			mov ax, elements[bx]
@@ -391,10 +395,10 @@ CSEG SEGMENT PARA PUBLIC "CODE"
 	ARRAY_MIN PROC FAR
 		mov ax, elements[0]
 		mov min, ax
-		mov ax, n
+		mov ax, len
 		mov i, ax
 		min_loop:
-			mov bx, n
+			mov bx, len
 			sub bx, i
 			shl bx, 1
 			mov ax, elements[bx]
