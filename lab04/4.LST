@@ -1,0 +1,690 @@
+Turbo Assembler	 Version 4.1	    12/25/19 19:12:34	    Page 1
+4.asm
+
+
+
+      1				     ; STACK SEGMENT
+      2	0000			     STSEG SEGMENT PARA	STACK "STACK"
+      3	0000  40*(00)			     DB	64 DUP (0)
+      4	0040			     STSEG ENDS
+      5
+      6				     ; DATA SEGMENT
+      7	0000			     DSEG SEGMENT PARA PUBLIC "DATA"
+      8	0000  45 6E 74 65 72 20	6E+	     helloStr db "Enter	number of elements (1-20) : $"
+      9	      75 6D 62 65 72 20	6F+
+     10	      66 20 65 6C 65 6D	65+
+     11	      6E 74 73 20 28 31	2D+
+     12	      32 30 29 20 3A 20	24
+     13	0023  45 6E 74 65 72 20	61+	     elementStr	db "Enter an element: $"
+     14	      6E 20 65 6C 65 6D	65+
+     15	      6E 74 3A 20 24
+     16	0036  4F 76 65 72 66 6C	6F+	     overflowError db "Overflow	error",	10, "$"
+     17	      77 20 65 72 72 6F	72+
+     18	      0A 24
+     19	0046  49 6E 76 61 6C 69	64+	     numberOfElementsError db "Invalid number!", 10, "$"
+     20	      20 6E 75 6D 62 65	72+
+     21	      21 0A 24
+     22	0057  53 74 72 69 6E 67	20+	     elementError db "String can not be	empty"
+     23	      63 61 6E 20 6E 6F	74+
+     24	      20 62 65 20 65 6D	70+
+     25	      74 79
+     26	006E  45 6E 74 65 72 20	61+	     findElemStr db "Enter an element to find :	$"
+     27	      6E 20 65 6C 65 6D	65+
+     28	      6E 74 20 74 6F 20	66+
+     29	      69 6E 64 20 3A 20	24
+     30	008A  45 6E 74 65 72 20	58+	     xStr db "Enter X (1-5): $"
+     31	      20 28 31 2D 35 29	3A+
+     32	      20 24
+     33	009A  45 6E 74 65 72 20	59+	     yStr db "Enter Y (1-5): $"
+     34	      20 28 31 2D 35 29	3A+
+     35	      20 24
+     36	00AA  41 72 72 61 79 20	69+	     arrayStr db "Array	is : $"
+     37	      73 20 3A 20 24
+     38	00B6  53 75 6D 20 69 73	20+	     sumStr db "Sum is : $"
+     39	      3A 20 24
+     40	00C0  4D 69 6E 20 69 73	20+	     minStr db "Min is : $"
+     41	      3A 20 24
+     42	00CA  53 6F 72 74 65 64	20+	     sortedStr db "Sorted array	is : $"
+     43	      61 72 72 61 79 20	69+
+     44	      73 20 3A 20 24
+     45
+     46	00DD  06 ?? 06*(3F)		     buffer db 6, ?, 6 dup ('?')
+     47	00E5  06 ?? 06*(3F)		     xBuffer db	6, ?, 6	dup ('?')
+     48	00ED  06 ?? 06*(3F)		     yBuffer db	6, ?, 6	dup ('?')
+     49
+     50	00F5  ????			     x dw ?
+     51	00F7  ????			     y dw ?
+     52
+     53	00F9  14*(????)			     elements dw 20 dup	(?)
+     54	0121  19*(????)			     twoDArr dw	25 dup (?)
+     55	0153  0000			     len dw 0
+     56	0155  0000			     i dw 0
+     57	0157  0000			     j dw 0
+Turbo Assembler	 Version 4.1	    12/25/19 19:12:34	    Page 2
+4.asm
+
+
+
+     58	0159  0000			     tmp dw 0
+     59
+     60	015B  0000			     sum dw 0
+     61	015D  ????			     min dw ?
+     62	015F  ????			     find dw ?
+     63
+     64	0161  00			     was_overflow db 0
+     65	0162  00			     was_empty db 0
+     66
+     67	0163			     DSEG ENDS
+     68
+     69				     ; CODE SEGMENT
+     70	0000			     CSEG SEGMENT PARA PUBLIC "CODE"
+     71
+     72	0000				     MAIN PROC FAR
+     73						     ASSUME cs:	CSEG, ds: DSEG,	ss:STSEG
+     74
+     75	0000  1E				     push ds
+     76	0001  33 C0				     xor ax, ax
+     77	0003  50				     push ax
+     78	0004  B8 0000s				     mov ax, DSEG
+     79	0007  8E D8				     mov ds, ax
+     80
+     81	0009  BA 0000r				     lea dx, helloStr
+     82	000C  0E E8 0475 90			     call far ptr WRITING
+     83	0011  BA 00DDr				     lea dx, buffer
+     84	0014  0E E8 0468 90			     call far ptr READING
+     85	0019  B8 000A				     mov ax, 10
+     86	001C  CD 29				     int 29h
+     87
+     88	001E  BB 00DFr				     lea bx, buffer + 2
+     89	0021  0E E8 03F3 90			     call far ptr ATOI
+     90	0026  80 3E 0161r 01			     cmp was_overflow, 1
+     91	002B  74 63				     je	jump_toEnd
+     92	002D  A3 0153r				     mov len, ax
+     93	0030  83 3E 0153r 01			     cmp len, 1
+     94	0035  7C 56				     jl	jump_toError
+     95	0037  83 3E 0153r 14			     cmp len, 20
+     96	003C  7F 4F				     jg	jump_toError
+     97	003E  A1 0153r				     mov ax, len
+     98	0041  A3 0155r				     mov i, ax
+     99
+    100	0044					     reading_loop:
+    101	0044  BA 0023r					     lea dx, elementStr
+    102	0047  0E E8 043A 90				     call far ptr WRITING
+    103	004C  BA 00DDr					     lea dx, buffer
+    104	004F  0E E8 042D 90				     call far ptr READING
+    105	0054  B8 000A					     mov ax, 10
+    106	0057  CD 29					     int 29h
+    107	0059  BB 00DFr					     lea bx, buffer + 2
+    108	005C  0E E8 03B8 90				     call far ptr ATOI
+    109	0061  80 3E 0161r 01				     cmp was_overflow, 1
+    110	0066  74 28					     je	jump_toEnd
+    111	0068  8B 1E 0153r				     mov bx, len
+    112	006C  2B 1E 0155r				     sub bx, i
+    113	0070  D1 E3					     shl bx, 1
+    114	0072  89 87 00F9r				     mov elements[bx], ax
+Turbo Assembler	 Version 4.1	    12/25/19 19:12:34	    Page 3
+4.asm
+
+
+
+    115	0076  FF 0E 0155r				     dec i
+    116	007A  75 C8					     jnz reading_loop
+    117
+    118	007C  BA 00AAr				     lea dx, arrayStr
+    119	007F  0E E8 0402 90			     call far ptr WRITING
+    120	0084  A1 0153r				     mov ax, len
+    121	0087  A3 0155r				     mov i, ax
+    122	008A  EB 07 90				     jmp output_array
+    123	008D  E9 0218				     jump_toError: jmp error_main
+    124	0090  E9 021D				     jump_toEnd: jmp end_main
+    125	0093					     output_array:
+    126	0093  8B 1E 0153r				     mov bx, len
+    127	0097  2B 1E 0155r				     sub bx, i
+    128	009B  D1 E3					     shl bx, 1
+    129	009D  8B 87 00F9r				     mov ax, elements[bx]
+    130	00A1  8B D8					     mov bx, ax
+    131	00A3  0E E8 034B 90				     call far ptr ITOA
+    132	00A8  B8 0020					     mov ax, ' '
+    133	00AB  CD 29					     int 29h
+    134	00AD  FF 0E 0155r				     dec i
+    135	00B1  75 E0					     jnz output_array
+    136	00B3  B8 000A				     mov ax, 10
+    137	00B6  CD 29				     int 29h
+    138
+    139	00B8  BA 00B6r				     lea dx, sumStr
+    140	00BB  0E E8 03C6 90			     call far ptr WRITING
+    141	00C0  0E E8 02D3 90			     call far ptr ARRAY_SUM
+    142	00C5  80 3E 0161r 01			     cmp was_overflow, 1
+    143	00CA  74 3F				     je	jump_toEnd4
+    144	00CC  8B 1E 015Br			     mov bx, sum
+    145	00D0  0E E8 031E 90			     call far ptr ITOA
+    146	00D5  B8 000A				     mov ax, 10
+    147	00D8  CD 29				     int 29h
+    148
+    149	00DA  BA 00C0r				     lea dx, minStr
+    150	00DD  0E E8 03A4 90			     call far ptr WRITING
+    151	00E2  0E E8 02E2 90			     call far ptr ARRAY_MIN
+    152	00E7  8B 1E 015Dr			     mov bx, min
+    153	00EB  0E E8 0303 90			     call far ptr ITOA
+    154	00F0  B8 000A				     mov ax, 10
+    155	00F3  CD 29				     int 29h
+    156
+    157	00F5  BA 00CAr				     lea dx, sortedStr
+    158	00F8  0E E8 0389 90			     call far ptr WRITING
+    159	00FD  0E E8 021D 90			     call far ptr ARRAY_SORT
+    160	0102  A1 0153r				     mov ax, len
+    161	0105  A3 0155r				     mov i, ax
+    162	0108  EB 04 90				     jmp output_array1
+    163	010B  E9 0098				     jump_toEnd4: jmp jump_toEnd3
+    164	010E					     output_array1:
+    165	010E  8B 1E 0153r				     mov bx, len
+    166	0112  2B 1E 0155r				     sub bx, i
+    167	0116  D1 E3					     shl bx, 1
+    168	0118  8B 87 00F9r				     mov ax, elements[bx]
+    169	011C  8B D8					     mov bx, ax
+    170	011E  0E E8 02D0 90				     call far ptr ITOA
+    171	0123  B8 0020					     mov ax, ' '
+Turbo Assembler	 Version 4.1	    12/25/19 19:12:34	    Page 4
+4.asm
+
+
+
+    172	0126  CD 29					     int 29h
+    173	0128  FF 0E 0155r				     dec i
+    174	012C  75 E0					     jnz output_array1
+    175	012E  B8 000A				     mov ax, 10
+    176	0131  CD 29				     int 29h
+    177
+    178
+    179						     ; READ X
+    180	0133  BA 008Ar				     lea dx, xStr
+    181	0136  0E E8 034B 90			     call far ptr WRITING
+    182	013B  BA 00E5r				     lea dx, xBuffer
+    183	013E  0E E8 033E 90			     call far ptr READING
+    184	0143  B8 000A				     mov ax, 10
+    185	0146  CD 29				     int 29h
+    186
+    187						     ; READ Y
+    188	0148  BA 009Ar				     lea dx, yStr
+    189	014B  0E E8 0336 90			     call far ptr WRITING
+    190	0150  BA 00EDr				     lea dx, yBuffer
+    191	0153  0E E8 0329 90			     call far ptr READING
+    192	0158  B8 000A				     mov ax, 10
+    193	015B  CD 29				     int 29h
+    194
+    195	015D  BB 00E7r				     lea bx, xBuffer + 2
+    196	0160  0E E8 02B4 90			     call far ptr ATOI
+    197	0165  80 3E 0161r 01			     cmp was_overflow, 1
+    198	016A  74 3A				     je	jump_toEnd3
+    199	016C  A3 00F5r				     mov x, ax
+    200
+    201	016F  BB 00EFr				     lea bx, yBuffer + 2
+    202	0172  0E E8 02A2 90			     call far ptr ATOI
+    203	0177  80 3E 0161r 01			     cmp was_overflow, 1
+    204	017C  74 2B				     je	jump_toError3
+    205	017E  A3 00F7r				     mov y, ax
+    206	0181  83 3E 00F5r 01			     cmp x, 1
+    207	0186  7C 21				     jl	jump_toError3
+    208	0188  83 3E 00F5r 05			     cmp x, 5
+    209	018D  7F 1A				     jg	jump_toError3
+    210	018F  83 3E 00F7r 01			     cmp y, 1
+    211	0194  7C 13				     jl	jump_toError3
+    212	0196  83 3E 00F7r 05			     cmp y, 5
+    213	019B  7F 0C				     jg	jump_toError3
+    214
+    215	019D  C7 06 0155r 0000			     mov i, 0
+    216	01A3  EB 07 90				     jmp reading_2d_out
+    217
+    218	01A6  E9 0089				     jump_toEnd3: jmp jump_toEnd2
+    219	01A9  E9 0089				     jump_toError3: jmp	jump_toError2
+    220
+    221
+    222	01AC					     reading_2d_out:
+    223	01AC  C7 06 0157r 0000				     mov j, 0
+    224	01B2						     reading_2d_in:
+    225	01B2  B8 005B						     mov ax, '['
+    226	01B5  CD 29						     int 29h
+    227	01B7  8B 1E 0155r					     mov bx, i
+    228	01BB  0E E8 0233 90					     call far ptr ITOA
+Turbo Assembler	 Version 4.1	    12/25/19 19:12:34	    Page 5
+4.asm
+
+
+
+    229	01C0  B8 002C						     mov ax, ','
+    230	01C3  CD 29						     int 29h
+    231	01C5  8B 1E 0157r					     mov bx, j
+    232	01C9  0E E8 0225 90					     call far ptr ITOA
+    233	01CE  B8 005D						     mov ax, ']'
+    234	01D1  CD 29						     int 29h
+    235	01D3  B8 0020						     mov ax, ' '
+    236	01D6  CD 29						     int 29h
+    237	01D8  BA 00DDr						     lea dx, buffer
+    238	01DB  0E E8 02A1 90					     call far ptr READING
+    239	01E0  B8 000A						     mov ax, 10
+    240	01E3  CD 29						     int 29h
+    241	01E5  BB 00DFr						     lea bx, buffer + 2
+    242	01E8  0E E8 022C 90					     call far ptr ATOI
+    243	01ED  80 3E 0161r 01					     cmp was_overflow, 1
+    244	01F2  74 3E						     je	jump_toEnd2
+    245	01F4  A3 0159r						     mov tmp, ax
+    246	01F7  A1 0155r						     mov ax, i
+    247	01FA  8B 1E 00F5r					     mov bx, x
+    248	01FE  F7 E3						     mul bx
+    249	0200  03 06 0157r					     add ax, j
+    250	0204  8B D8						     mov bx, ax
+    251	0206  D1 E3						     shl bx, 1
+    252	0208  A1 0159r						     mov ax, tmp
+    253	020B  89 87 0121r					     mov twoDArr[bx], ax
+    254	020F  FF 06 0157r					     inc j
+    255	0213  A1 0157r						     mov ax, j
+    256	0216  3B 06 00F5r					     cmp ax, x
+    257	021A  7C 96						     jl	reading_2d_in
+    258	021C  FF 06 0155r				     inc i
+    259	0220  A1 0155r					     mov ax, i
+    260	0223  3B 06 00F7r				     cmp ax, y
+    261	0227  7C 83					     jl	reading_2d_out
+    262
+    263
+    264	0229  C7 06 0155r 0000			     mov i, 0
+    265	022F  EB 07 90				     jmp writing_2d_out
+    266	0232  EB 7C 90				     jump_toEnd2: jmp end_main
+    267	0235  EB 71 90				     jump_toError2: jmp	error_main
+    268	0238					     writing_2d_out:
+    269	0238  C7 06 0157r 0000				     mov j, 0
+    270	023E						     writing_2d_in:
+    271	023E  A1 0155r						     mov ax, i
+    272	0241  8B 1E 00F5r					     mov bx, x
+    273	0245  F7 E3						     mul bx
+    274	0247  03 06 0157r					     add ax, j
+    275	024B  8B D8						     mov bx, ax
+    276	024D  D1 E3						     shl bx, 1
+    277	024F  8B 87 0121r					     mov ax, twoDArr[bx]
+    278	0253  8B D8						     mov bx, ax
+    279	0255  0E E8 0199 90					     call far ptr ITOA
+    280	025A  B8 0020						     mov ax, ' '
+    281	025D  CD 29						     int 29h
+    282	025F  FF 06 0157r					     inc j
+    283	0263  A1 0157r						     mov ax, j
+    284	0266  3B 06 00F5r					     cmp ax, x
+    285	026A  7C D2						     jl	writing_2d_in
+Turbo Assembler	 Version 4.1	    12/25/19 19:12:34	    Page 6
+4.asm
+
+
+
+    286	026C  B8 000A					     mov ax, 10
+    287	026F  CD 29					     int 29h
+    288	0271  FF 06 0155r				     inc i
+    289	0275  A1 0155r					     mov ax, i
+    290	0278  3B 06 00F7r				     cmp ax, y
+    291	027C  7C BA					     jl	writing_2d_out
+    292
+    293	027E  BA 006Er				     lea dx, findElemStr
+    294	0281  0E E8 0200 90			     call far ptr WRITING
+    295	0286  BA 00DDr				     lea dx, buffer
+    296	0289  0E E8 01F3 90			     call far ptr READING
+    297	028E  BB 00DFr				     lea bx, buffer + 2
+    298	0291  0E E8 0183 90			     call far ptr ATOI
+    299	0296  80 3E 0161r 01			     cmp was_overflow, 1
+    300	029B  74 13				     je	end_main
+    301	029D  A3 015Fr				     mov find, ax
+    302
+    303	02A0  0E E8 000D 90			     call far ptr FIND_ELEM
+    304
+    305
+    306	02A5  EB 09 90				     jmp end_main
+    307	02A8					     error_main:
+    308	02A8  BA 0046r					     lea dx, numberOfElementsError
+    309	02AB  0E E8 01D6 90				     call far ptr WRITING
+    310	02B0					     end_main:
+    311	02B0  CB					     ret
+    312	02B1				     MAIN ENDP
+    313
+    314	02B1				     FIND_ELEM PROC FAR
+    315	02B1  B8 000A				     mov ax, 10
+    316	02B4  CD 29				     int 29h
+    317	02B6  C7 06 0155r 0000			     mov i, 0
+    318	02BC					     find_2d_out:
+    319	02BC  C7 06 0157r 0000				     mov j, 0
+    320	02C2						     find_2d_in:
+    321	02C2  A1 0155r						     mov ax, i
+    322	02C5  8B 1E 00F5r					     mov bx, x
+    323	02C9  F7 E3						     mul bx
+    324	02CB  03 06 0157r					     add ax, j
+    325	02CF  8B D8						     mov bx, ax
+    326	02D1  D1 E3						     shl bx, 1
+    327	02D3  8B 87 0121r					     mov ax, twoDArr[bx]
+    328	02D7  3B 06 015Fr					     cmp ax, find
+    329	02DB  75 26						     jne find_skip
+    330	02DD  B8 005B						     mov ax, '['
+    331	02E0  CD 29						     int 29h
+    332	02E2  8B 1E 0155r					     mov bx, i
+    333	02E6  0E E8 0108 90					     call far ptr ITOA
+    334	02EB  B8 002C						     mov ax, ','
+    335	02EE  CD 29						     int 29h
+    336	02F0  8B 1E 0157r					     mov bx, j
+    337	02F4  0E E8 00FA 90					     call far ptr ITOA
+    338	02F9  B8 005D						     mov ax, ']'
+    339	02FC  CD 29						     int 29h
+    340	02FE  B8 000A						     mov ax, 10
+    341	0301  CD 29						     int 29h
+    342	0303							     find_skip:
+Turbo Assembler	 Version 4.1	    12/25/19 19:12:34	    Page 7
+4.asm
+
+
+
+    343	0303  FF 06 0157r						     inc j
+    344	0307  A1 0157r							     mov ax, j
+    345	030A  3B 06 00F5r						     cmp ax, x
+    346	030E  7C B2							     jl	find_2d_in
+    347	0310  FF 06 0155r				     inc i
+    348	0314  A1 0155r					     mov ax, i
+    349	0317  3B 06 00F7r				     cmp ax, y
+    350	031B  7C 9F					     jl	find_2d_out
+    351	031D  CB				     ret
+    352	031E				     ENDP FIND_ELEM
+    353
+    354	031E				     ARRAY_SORT	PROC FAR
+    355	031E  C7 06 0155r 0000			     mov i, 0
+    356	0324					     out_loop_sort:
+    357	0324  A1 0155r				     mov ax, i
+    358	0327  A3 015Dr				     mov min, ax
+    359	032A  A3 0157r				     mov j, ax
+    360	032D  FF 06 0157r			     inc j
+    361	0331  A1 0153r				     mov ax, len
+    362	0334  39 06 0157r			     cmp j, ax
+    363	0338  7D 5C				     jge sort_end
+    364	033A					     inner_loop_sort:
+    365	033A  8B 1E 015Dr				     mov bx, min
+    366	033E  D1 E3					     shl bx, 1
+    367	0340  8B 87 00F9r				     mov ax, elements[bx]
+    368	0344  8B 1E 0157r				     mov bx, j
+    369	0348  D1 E3					     shl bx, 1
+    370	034A  8B 8F 00F9r				     mov cx, elements[bx]
+    371	034E  3B C1					     cmp ax, cx
+    372	0350  7E 06					     jng skip_update
+    373	0352  A1 0157r					     mov ax, j
+    374	0355  A3 015Dr					     mov min, ax
+    375	0358						     skip_update:
+    376	0358  FF 06 0157r				     inc j
+    377	035C  A1 0157r					     mov ax, j
+    378	035F  3B 06 0153r				     cmp ax, len
+    379	0363  7C D5					     jl	inner_loop_sort
+    380	0365  8B 1E 0155r			     mov bx, i
+    381	0369  D1 E3				     shl bx, 1
+    382	036B  8B 87 00F9r			     mov ax, elements[bx]
+    383	036F  8B 1E 015Dr			     mov bx, min
+    384	0373  D1 E3				     shl bx, 1
+    385	0375  8B 8F 00F9r			     mov cx, elements[bx]
+    386	0379  8B D1				     mov dx, cx
+    387	037B  89 87 00F9r			     mov elements[bx], ax
+    388	037F  8B 1E 0155r			     mov bx, i
+    389	0383  D1 E3				     shl bx, 1
+    390	0385  89 97 00F9r			     mov elements[bx], dx
+    391	0389  FF 06 0155r			     inc i
+    392	038D  A1 0153r				     mov ax, len
+    393	0390  39 06 0155r			     cmp i, ax
+    394	0394  7C 8E				     jl	out_loop_sort
+    395	0396					     sort_end:
+    396	0396  CB					     ret
+    397	0397				     ENDP ARRAY_SORT
+    398
+    399	0397				     ARRAY_SUM PROC FAR
+Turbo Assembler	 Version 4.1	    12/25/19 19:12:34	    Page 8
+4.asm
+
+
+
+    400	0397  A1 0153r				     mov ax, len
+    401	039A  A3 0155r				     mov i, ax
+    402	039D					     sum_loop:
+    403	039D  8B 1E 0153r				     mov bx, len
+    404	03A1  2B 1E 0155r				     sub bx, i
+    405	03A5  D1 E3					     shl bx, 1
+    406	03A7  8B 87 00F9r				     mov ax, elements[bx]
+    407	03AB  01 06 015Br				     add sum, ax
+    408	03AF  70 09					     jo	error_sum
+    409	03B1  FF 0E 0155r				     dec i
+    410	03B5  75 E6					     jnz sum_loop
+    411	03B7  EB 0E 90				     jmp sum_end
+    412	03BA					     error_sum:
+    413	03BA  C6 06 0161r 01				     mov was_overflow, 1
+    414	03BF  BA 0036r					     lea dx, overflowError
+    415	03C2  0E E8 00BF 90				     call far ptr WRITING
+    416	03C7					     sum_end:
+    417	03C7  CB					     ret
+    418	03C8				     ENDP ARRAY_SUM
+    419
+    420	03C8				     ARRAY_MIN PROC FAR
+    421	03C8  A1 00F9r				     mov ax, elements[0]
+    422	03CB  A3 015Dr				     mov min, ax
+    423	03CE  A1 0153r				     mov ax, len
+    424	03D1  A3 0155r				     mov i, ax
+    425	03D4					     min_loop:
+    426	03D4  8B 1E 0153r				     mov bx, len
+    427	03D8  2B 1E 0155r				     sub bx, i
+    428	03DC  D1 E3					     shl bx, 1
+    429	03DE  8B 87 00F9r				     mov ax, elements[bx]
+    430	03E2  3B 06 015Dr				     cmp ax, min
+    431	03E6  7F 03					     jg	iterate_min
+    432	03E8  A3 015Dr					     mov min, ax
+    433	03EB						     iterate_min:
+    434	03EB  FF 0E 0155r					     dec i
+    435	03EF  75 E3						     jnz min_loop
+    436	03F1  CB				     ret
+    437	03F2				     ENDP ARRAY_MIN
+    438
+    439	03F2				     ITOA PROC FAR
+    440	03F2  0B DB				     or	bx, bx
+    441	03F4  79 08				     jns positive_number
+    442	03F6  33 C0				     xor ax, ax
+    443	03F8  B0 2D				     mov al, '-'
+    444	03FA  CD 29				     int 29h
+    445	03FC  F7 DB				     neg bx
+    446	03FE					     positive_number:
+    447	03FE  8B C3					     mov ax, bx
+    448	0400  33 C9					     xor cx, cx	     ; chars number
+    449	0402  BB 000A					     mov bx, 10	     ; diviator
+    450	0405						     itoa_loop:
+    451	0405  33 D2						     xor dx, dx	     ; remainder stores	here
+    452	0407  F7 F3						     div bx
+    453	0409  80 C2 30						     add dl, '0'
+    454	040C  52						     push dx
+    455	040D  41						     inc cx
+    456	040E  85 C0						     test ax, ax
+Turbo Assembler	 Version 4.1	    12/25/19 19:12:34	    Page 9
+4.asm
+
+
+
+    457	0410  75 F3						     jnz itoa_loop
+    458	0412						     output:
+    459	0412  58						     pop ax
+    460	0413  CD 29						     int 29h
+    461	0415  E2 FB						     loop output
+    462	0417  CB					     ret
+    463	0418					     ITOA ENDP
+    464
+    465	0418				     ATOI PROC FAR
+    466	0418  33 C0				     xor ax, ax		     ; result
+    467	041A  33 C9				     xor cx, cx		     ; char
+    468	041C  33 FF				     xor di, di		     ; 10
+    469	041E  BF 000A				     mov di, 10
+    470	0421  33 F6				     xor si, si		     ; sign
+    471
+    472	0423					     skip_whitespaces:
+    473	0423  8A 0F					     mov cl, BYTE PTR [bx]
+    474	0425  80 F9 20					     cmp cl, 32	     ; ' '
+    475	0428  74 08					     je	step
+    476	042A  80 F9 09					     cmp cl , 9	     ; '\t'
+    477	042D  74 03					     je	step
+    478	042F  EB 04 90					     jmp sign_check
+    479	0432					     step:
+    480	0432  43					     inc bx
+    481	0433  EB EE					     jmp skip_whitespaces
+    482	0435					     sign_check:
+    483	0435  80 F9 2D					     cmp cl, 45	     ; '-'
+    484	0438  74 08					     je	minus
+    485	043A  80 F9 2B					     cmp cl, 43	     ; '+'
+    486	043D  74 06					     je	plus
+    487	043F  EB 08 90					     jmp atoi_loop
+    488	0442					     minus:
+    489	0442  BE 0001					     mov si, 1
+    490	0445						     plus:
+    491	0445  43						     inc bx
+    492	0446  EB 01 90						     jmp atoi_loop
+    493	0449					     atoi_loop:
+    494	0449  8A 0F					     mov cl, BYTE PTR [bx]
+    495	044B  80 F9 30					     cmp cl, 48	     ; '0'
+    496	044E  7C 13					     jl	atoi_end
+    497	0450  80 F9 39					     cmp cl, 57	     ; '9'
+    498	0453  7F 0E					     jg	atoi_end
+    499	0455  F7 EF					     imul di
+    500	0457  70 17					     jo	error
+    501	0459  80 E9 30					     sub cl, 48
+    502	045C  03 C1					     add ax, cx
+    503	045E  70 10					     jo	error
+    504	0460  43					     inc bx
+    505	0461  EB E6					     jmp atoi_loop
+    506	0463					     atoi_end:
+    507	0463  83 FE 01					     cmp si, 1
+    508	0466  74 03					     je	make_neg
+    509	0468  EB 15 90					     jmp exit_atoi
+    510	046B					     make_neg:
+    511	046B  F7 D8					     neg ax
+    512	046D  EB 10 90					     jmp exit_atoi
+    513	0470					     error:
+Turbo Assembler	 Version 4.1	    12/25/19 19:12:34	    Page 10
+4.asm
+
+
+
+    514	0470  C6 06 0161r 01				     mov was_overflow, 1
+    515	0475  33 D2					     xor dx, dx
+    516	0477  BA 0036r					     lea dx, overflowError
+    517	047A  0E E8 0007 90				     call far ptr WRITING
+    518	047F					     exit_atoi:
+    519	047F  CB					     ret
+    520	0480				     ATOI ENDP
+    521
+    522	0480				     READING PROC FAR
+    523	0480  B4 0A				     mov ah, 10
+    524	0482  CD 21				     int 21h
+    525	0484  CB				     ret
+    526	0485				     READING ENDP
+    527
+    528	0485				     WRITING PROC FAR
+    529	0485  B4 09				     mov ah, 9
+    530	0487  CD 21				     int 21h
+    531	0489  CB				     ret
+    532	048A				     WRITING ENDP
+    533	048A			     CSEG ENDS
+    534				     END MAIN
+Turbo Assembler	 Version 4.1	    12/25/19 19:12:34	    Page 11
+Symbol Table
+
+
+
+
+Symbol Name			  Type	 Value
+
+??DATE				  Text	 "12/25/19"
+??FILENAME			  Text	 "4	  "
+??TIME				  Text	 "19:12:34"
+??VERSION			  Number 040A
+@CPU				  Text	 0101H
+@CURSEG				  Text	 CSEG
+@FILENAME			  Text	 4
+@WORDSIZE			  Text	 2
+ARRAYSTR			  Byte	 DSEG:00AA
+ARRAY_MIN			  Far	 CSEG:03C8
+ARRAY_SORT			  Far	 CSEG:031E
+ARRAY_SUM			  Far	 CSEG:0397
+ATOI				  Far	 CSEG:0418
+ATOI_END			  Near	 CSEG:0463
+ATOI_LOOP			  Near	 CSEG:0449
+BUFFER				  Byte	 DSEG:00DD
+ELEMENTERROR			  Byte	 DSEG:0057
+ELEMENTS			  Word	 DSEG:00F9
+ELEMENTSTR			  Byte	 DSEG:0023
+END_MAIN			  Near	 CSEG:02B0
+ERROR				  Near	 CSEG:0470
+ERROR_MAIN			  Near	 CSEG:02A8
+ERROR_SUM			  Near	 CSEG:03BA
+EXIT_ATOI			  Near	 CSEG:047F
+FIND				  Word	 DSEG:015F
+FINDELEMSTR			  Byte	 DSEG:006E
+FIND_2D_IN			  Near	 CSEG:02C2
+FIND_2D_OUT			  Near	 CSEG:02BC
+FIND_ELEM			  Far	 CSEG:02B1
+FIND_SKIP			  Near	 CSEG:0303
+HELLOSTR			  Byte	 DSEG:0000
+I				  Word	 DSEG:0155
+INNER_LOOP_SORT			  Near	 CSEG:033A
+ITERATE_MIN			  Near	 CSEG:03EB
+ITOA				  Far	 CSEG:03F2
+ITOA_LOOP			  Near	 CSEG:0405
+J				  Word	 DSEG:0157
+JUMP_TOEND			  Near	 CSEG:0090
+JUMP_TOEND2			  Near	 CSEG:0232
+JUMP_TOEND3			  Near	 CSEG:01A6
+JUMP_TOEND4			  Near	 CSEG:010B
+JUMP_TOERROR			  Near	 CSEG:008D
+JUMP_TOERROR2			  Near	 CSEG:0235
+JUMP_TOERROR3			  Near	 CSEG:01A9
+LEN				  Word	 DSEG:0153
+MAIN				  Far	 CSEG:0000
+MAKE_NEG			  Near	 CSEG:046B
+MIN				  Word	 DSEG:015D
+MINSTR				  Byte	 DSEG:00C0
+MINUS				  Near	 CSEG:0442
+MIN_LOOP			  Near	 CSEG:03D4
+NUMBEROFELEMENTSERROR		  Byte	 DSEG:0046
+OUTPUT				  Near	 CSEG:0412
+OUTPUT_ARRAY			  Near	 CSEG:0093
+Turbo Assembler	 Version 4.1	    12/25/19 19:12:34	    Page 12
+Symbol Table
+
+
+
+OUTPUT_ARRAY1			  Near	 CSEG:010E
+OUT_LOOP_SORT			  Near	 CSEG:0324
+OVERFLOWERROR			  Byte	 DSEG:0036
+PLUS				  Near	 CSEG:0445
+POSITIVE_NUMBER			  Near	 CSEG:03FE
+READING				  Far	 CSEG:0480
+READING_2D_IN			  Near	 CSEG:01B2
+READING_2D_OUT			  Near	 CSEG:01AC
+READING_LOOP			  Near	 CSEG:0044
+SIGN_CHECK			  Near	 CSEG:0435
+SKIP_UPDATE			  Near	 CSEG:0358
+SKIP_WHITESPACES		  Near	 CSEG:0423
+SORTEDSTR			  Byte	 DSEG:00CA
+SORT_END			  Near	 CSEG:0396
+STEP				  Near	 CSEG:0432
+SUM				  Word	 DSEG:015B
+SUMSTR				  Byte	 DSEG:00B6
+SUM_END				  Near	 CSEG:03C7
+SUM_LOOP			  Near	 CSEG:039D
+TMP				  Word	 DSEG:0159
+TWODARR				  Word	 DSEG:0121
+WAS_EMPTY			  Byte	 DSEG:0162
+WAS_OVERFLOW			  Byte	 DSEG:0161
+WRITING				  Far	 CSEG:0485
+WRITING_2D_IN			  Near	 CSEG:023E
+WRITING_2D_OUT			  Near	 CSEG:0238
+X				  Word	 DSEG:00F5
+XBUFFER				  Byte	 DSEG:00E5
+XSTR				  Byte	 DSEG:008A
+Y				  Word	 DSEG:00F7
+YBUFFER				  Byte	 DSEG:00ED
+YSTR				  Byte	 DSEG:009A
+
+Groups & Segments		  Bit Size Align  Combine Class
+
+CSEG				  16  048A Para	  Public  CODE
+DSEG				  16  0163 Para	  Public  DATA
+STSEG				  16  0040 Para	  Stack	  STACK
+

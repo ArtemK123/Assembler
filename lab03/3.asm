@@ -10,6 +10,7 @@ DSEG SEGMENT PARA PUBLIC "DATA"
 	resultStr db "Result : $"
 	remainderStr db "Reminder of division : $"
 	overflowError db "Overflow error", 10, "$"
+	zeroDivision db "Zero division", 10, "$"
 	xBuffer db 6, ?, 6 dup ('?')
 	yBuffer db 6, ?, 6 dup ('?')
 	x dw ?
@@ -50,13 +51,13 @@ CSEG SEGMENT PARA PUBLIC "CODE"
 		lea bx, xBuffer + 2
 		call far ptr ATOI
 		cmp was_overflow, 1
-		je main_exit
+		je overflow_error_main
 		mov x, ax
 
 		lea bx, yBuffer + 2
 		call far ptr ATOI
 		cmp was_overflow, 1
-		je main_exit
+		je overflow_error_main
 		mov y, ax
 
 		cmp y, 0
@@ -91,9 +92,17 @@ CSEG SEGMENT PARA PUBLIC "CODE"
 			je main_exit
 			jmp writing_output
 
+		overflow_error_main:
+			mov was_overflow, 1
+			xor dx, dx
+			lea dx, overflowError
+			call far ptr WRITING
+			jmp main_exit
+
 		writing_output:
 			mov result, ax
 			call far ptr WRITE_OUTPUT
+
 		main_exit:
 			ret
 	MAIN ENDP
@@ -153,18 +162,53 @@ CSEG SEGMENT PARA PUBLIC "CODE"
 	SECOND_ACTION PROC FAR	;( 1 - x ) / ( 1 + x ). [y = 0]
 		mov bx, x
 		add bx, 1
+
 		jo overflow_error_second
 		mov ax, x
 		neg ax
 		add ax, 1
-		jo overflow_error_second
+
+		jo overflow_error_second ; ax=1-x  bx=1+x
+
+		xor cx, cx
+		cmp ax, 0
+		jg ax_positive
+			
+		inc cx ; ax negative
+		neg ax
+		ax_positive:
+
+		cmp bx, 0
+		je zeroDivision_label
+		jg bx_positive
+		
+		inc cx ; bx negative
+		neg bx
+		bx_positive:
+
+		xor dx, dx
 		idiv bx
+
+		cmp cx, 0
+		je exit_second
+
+		loop_negResult:
+			neg ax
+			loop loop_negResult
+
 		jmp exit_second
 		overflow_error_second:
 			mov was_overflow, 1
 			xor dx, dx
 			lea dx, overflowError
 			call far ptr WRITING
+
+		zeroDivision_label:
+			mov was_overflow, 1
+			xor dx, dx
+			lea dx, zeroDivision
+			call far ptr WRITING
+
 		exit_second:
 			ret
 	SECOND_ACTION ENDP

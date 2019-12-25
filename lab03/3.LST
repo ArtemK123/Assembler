@@ -1,0 +1,460 @@
+Turbo Assembler	 Version 4.1	    12/25/19 19:12:33	    Page 1
+3.asm
+
+
+
+      1				     ; STACK SEGMENT
+      2	0000			     STSEG SEGMENT PARA	STACK "STACK"
+      3	0000  40*(00)			     DB	64 DUP (0)
+      4	0040			     STSEG ENDS
+      5
+      6				     ; DATA SEGMENT
+      7	0000			     DSEG SEGMENT PARA PUBLIC "DATA"
+      8	0000  45 6E 74 65 72 20	78+	     xStr db "Enter x :	$"
+      9	      20 3A 20 24
+     10	000B  45 6E 74 65 72 20	79+	     yStr db "Enter y :	$"
+     11	      20 3A 20 24
+     12	0016  52 65 73 75 6C 74	20+	     resultStr db "Result : $"
+     13	      3A 20 24
+     14	0020  52 65 6D 69 6E 64	65+	     remainderStr db "Reminder of division : $"
+     15	      72 20 6F 66 20 64	69+
+     16	      76 69 73 69 6F 6E	20+
+     17	      3A 20 24
+     18	0038  4F 76 65 72 66 6C	6F+	     overflowError db "Overflow	error",	10, "$"
+     19	      77 20 65 72 72 6F	72+
+     20	      0A 24
+     21	0048  5A 65 72 6F 20 64	69+	     zeroDivision db "Zero division", 10, "$"
+     22	      76 69 73 69 6F 6E	0A+
+     23	      24
+     24	0057  06 ?? 06*(3F)		     xBuffer db	6, ?, 6	dup ('?')
+     25	005F  06 ?? 06*(3F)		     yBuffer db	6, ?, 6	dup ('?')
+     26	0067  ????			     x dw ?
+     27	0069  ????			     y dw ?
+     28	006B  ????			     result dw ?
+     29	006D  ????			     remainder dw ?
+     30	006F  00			     was_overflow db 0
+     31	0070			     DSEG ENDS
+     32
+     33				     ; CODE SEGMENT
+     34	0000			     CSEG SEGMENT PARA PUBLIC "CODE"
+     35
+     36	0000				     MAIN PROC FAR
+     37						     ASSUME cs:	CSEG, ds: DSEG,	ss:STSEG
+     38
+     39	0000  1E				     push ds
+     40	0001  33 C0				     xor ax, ax
+     41	0003  50				     push ax
+     42	0004  B8 0000s				     mov ax, DSEG
+     43	0007  8E D8				     mov ds, ax
+     44
+     45						     ; READ X
+     46	0009  BA 0000r				     lea dx, xStr
+     47	000C  0E E8 0233 90			     call far ptr WRITING
+     48	0011  BA 0057r				     lea dx, xBuffer
+     49	0014  0E E8 0226 90			     call far ptr READING
+     50	0019  B8 000A				     mov ax, 10
+     51	001C  CD 29				     int 29h
+     52
+     53						     ; READ Y
+     54	001E  BA 000Br				     lea dx, yStr
+     55	0021  0E E8 021E 90			     call far ptr WRITING
+     56	0026  BA 005Fr				     lea dx, yBuffer
+     57	0029  0E E8 0211 90			     call far ptr READING
+Turbo Assembler	 Version 4.1	    12/25/19 19:12:33	    Page 2
+3.asm
+
+
+
+     58	002E  B8 000A				     mov ax, 10
+     59	0031  CD 29				     int 29h
+     60
+     61	0033  BB 0059r				     lea bx, xBuffer + 2
+     62	0036  0E E8 019C 90			     call far ptr ATOI
+     63	003B  80 3E 006Fr 01			     cmp was_overflow, 1
+     64	0040  74 65				     je	overflow_error_main
+     65	0042  A3 0067r				     mov x, ax
+     66
+     67	0045  BB 0061r				     lea bx, yBuffer + 2
+     68	0048  0E E8 018A 90			     call far ptr ATOI
+     69	004D  80 3E 006Fr 01			     cmp was_overflow, 1
+     70	0052  74 53				     je	overflow_error_main
+     71	0054  A3 0069r				     mov y, ax
+     72
+     73	0057  83 3E 0069r 00			     cmp y, 0
+     74	005C  7F 04				     jg	maybe_first
+     75	005E  74 21				     je	second
+     76	0060  7C 32				     jl	third
+     77
+     78	0062					     maybe_first:
+     79	0062  A1 0069r					     mov ax, y
+     80	0065  39 06 0067r				     cmp x, ax
+     81	0069  74 56					     je	main_exit
+     82	006B  EB 01 90					     jmp first
+     83
+     84	006E					     first:
+     85	006E  0E E8 0078 90				     call far ptr FIRST_ACTION
+     86	0073  89 16 006Dr				     mov remainder, dx
+     87	0077  80 3E 006Fr 01				     cmp was_overflow, 1
+     88	007C  74 43					     je	main_exit
+     89	007E  EB 39 90					     jmp writing_output
+     90
+     91	0081					     second:
+     92	0081  0E E8 00A8 90				     call far ptr SECOND_ACTION
+     93	0086  89 16 006Dr				     mov remainder, dx
+     94	008A  80 3E 006Fr 01				     cmp was_overflow, 1
+     95	008F  74 30					     je	main_exit
+     96	0091  EB 26 90					     jmp writing_output
+     97
+     98	0094					     third:
+     99	0094  0E E8 00EB 90				     call far ptr THIRD_ACTION
+    100	0099  89 16 006Dr				     mov remainder, dx
+    101	009D  80 3E 006Fr 01				     cmp was_overflow, 1
+    102	00A2  74 1D					     je	main_exit
+    103	00A4  EB 13 90					     jmp writing_output
+    104
+    105	00A7					     overflow_error_main:
+    106	00A7  C6 06 006Fr 01				     mov was_overflow, 1
+    107	00AC  33 D2					     xor dx, dx
+    108	00AE  BA 0038r					     lea dx, overflowError
+    109	00B1  0E E8 018E 90				     call far ptr WRITING
+    110	00B6  EB 09 90					     jmp main_exit
+    111
+    112	00B9					     writing_output:
+    113	00B9  A3 006Br					     mov result, ax
+    114	00BC  0E E8 0002 90				     call far ptr WRITE_OUTPUT
+Turbo Assembler	 Version 4.1	    12/25/19 19:12:33	    Page 3
+3.asm
+
+
+
+    115
+    116	00C1					     main_exit:
+    117	00C1  CB					     ret
+    118	00C2				     MAIN ENDP
+    119
+    120	00C2				     WRITE_OUTPUT PROC FAR
+    121	00C2  BA 0016r				     lea dx, resultStr
+    122	00C5  0E E8 017A 90			     call far ptr WRITING
+    123	00CA  8B 1E 006Br			     mov bx, result
+    124	00CE  0E E8 00DE 90			     call far ptr ITOA
+    125	00D3  B8 000A				     mov ax, 10
+    126	00D6  CD 29				     int 29h
+    127	00D8  BA 0020r				     lea dx, remainderStr
+    128	00DB  0E E8 0164 90			     call far ptr WRITING
+    129	00E0  8B 1E 006Dr			     mov bx, remainder
+    130	00E4  0E E8 00C8 90			     call far ptr ITOA
+    131	00E9  CB				     ret
+    132	00EA				     WRITE_OUTPUT ENDP
+    133
+    134	00EA				     FIRST_ACTION PROC FAR   ; (34 * (x	^ 2)) /	(y * (x	- y)). [y > 0, x <> y]
+    135	00EA  33 C0				     xor ax, ax
+    136	00EC  B8 0022				     mov ax, 34
+    137	00EF  8B 1E 0067r			     mov bx, x
+    138
+    139	00F3  33 C9				     xor cx, cx
+    140	00F5  B9 0002				     mov cx, 2
+    141	00F8					     loop_label:
+    142	00F8  F7 EB					     imul bx
+    143	00FA  70 21					     jo	overflow_error_first
+    144	00FC  E2 FA					     loop loop_label
+    145
+    146	00FE  8B C8				     mov cx, ax	; x = 34 * (x ^	2)
+    147
+    148	0100  8B 1E 0067r			     mov bx, x
+    149	0104  A1 0069r				     mov ax, y
+    150	0107  2B D8				     sub bx, ax
+    151	0109  70 12				     jo	overflow_error_first
+    152
+    153	010B  A1 0069r				     mov ax, y
+    154	010E  F7 EB				     imul bx
+    155	0110  70 0B				     jo	overflow_error_first
+    156
+    157	0112  33 D2				     xor dx, dx
+    158	0114  8B D8				     mov bx, ax
+    159	0116  8B C1				     mov ax, cx
+    160
+    161	0118  F7 FB				     idiv bx
+    162	011A  EB 10 90				     jmp exit_first
+    163	011D					     overflow_error_first:
+    164	011D  C6 06 006Fr 01				     mov was_overflow, 1
+    165	0122  33 D2					     xor dx, dx
+    166	0124  BA 0038r					     lea dx, overflowError
+    167	0127  0E E8 0118 90				     call far ptr WRITING
+    168	012C					     exit_first:
+    169	012C  CB					     ret
+    170	012D				     FIRST_ACTION ENDP
+    171
+Turbo Assembler	 Version 4.1	    12/25/19 19:12:33	    Page 4
+3.asm
+
+
+
+    172	012D				     SECOND_ACTION PROC	FAR  ;(	1 - x )	/ ( 1 +	x ). [y	= 0]
+    173	012D  8B 1E 0067r			     mov bx, x
+    174	0131  83 C3 01				     add bx, 1
+    175
+    176	0134  70 2E				     jo	overflow_error_second
+    177	0136  A1 0067r				     mov ax, x
+    178	0139  F7 D8				     neg ax
+    179	013B  05 0001				     add ax, 1
+    180
+    181	013E  70 24				     jo	overflow_error_second ;	ax=1-x	bx=1+x
+    182
+    183	0140  33 C9				     xor cx, cx
+    184	0142  3D 0000				     cmp ax, 0
+    185	0145  7F 03				     jg	ax_positive
+    186
+    187	0147  41				     inc cx ; ax negative
+    188	0148  F7 D8				     neg ax
+    189	014A					     ax_positive:
+    190
+    191	014A  83 FB 00				     cmp bx, 0
+    192	014D  74 24				     je	zeroDivision_label
+    193	014F  7F 03				     jg	bx_positive
+    194
+    195	0151  41				     inc cx ; bx negative
+    196	0152  F7 DB				     neg bx
+    197	0154					     bx_positive:
+    198
+    199	0154  33 D2				     xor dx, dx
+    200	0156  F7 FB				     idiv bx
+    201
+    202	0158  83 F9 00				     cmp cx, 0
+    203	015B  74 25				     je	exit_second
+    204
+    205	015D					     loop_negResult:
+    206	015D  F7 D8					     neg ax
+    207	015F  E2 FC					     loop loop_negResult
+    208
+    209	0161  EB 1F 90				     jmp exit_second
+    210	0164					     overflow_error_second:
+    211	0164  C6 06 006Fr 01				     mov was_overflow, 1
+    212	0169  33 D2					     xor dx, dx
+    213	016B  BA 0038r					     lea dx, overflowError
+    214	016E  0E E8 00D1 90				     call far ptr WRITING
+    215
+    216	0173					     zeroDivision_label:
+    217	0173  C6 06 006Fr 01				     mov was_overflow, 1
+    218	0178  33 D2					     xor dx, dx
+    219	017A  BA 0048r					     lea dx, zeroDivision
+    220	017D  0E E8 00C2 90				     call far ptr WRITING
+    221
+    222	0182					     exit_second:
+    223	0182  CB					     ret
+    224	0183				     SECOND_ACTION ENDP
+    225
+    226	0183				     THIRD_ACTION PROC FAR ; (x	^ 2) * (y ^ 2).	[y < 0]
+    227	0183  A1 0067r				     mov ax, x
+    228	0186  8B 1E 0067r			     mov bx, x
+Turbo Assembler	 Version 4.1	    12/25/19 19:12:33	    Page 5
+3.asm
+
+
+
+    229	018A  F7 EB				     imul bx ; x ^ 2
+    230	018C  70 12				     jo	overflow_error_third
+    231	018E  8B 1E 0069r			     mov bx, y
+    232	0192  33 C9				     xor cx, cx
+    233	0194  B9 0002				     mov cx, 2
+    234	0197					     label_loop_third:
+    235	0197  F7 EB					     imul bx
+    236	0199  70 05					     jo	overflow_error_third
+    237	019B  E2 FA					     loop label_loop_third
+    238	019D  EB 10 90				     jmp exit_third
+    239	01A0					     overflow_error_third:
+    240	01A0  C6 06 006Fr 01				     mov was_overflow, 1
+    241	01A5  33 D2					     xor dx, dx
+    242	01A7  BA 0038r					     lea dx, overflowError
+    243	01AA  0E E8 0095 90				     call far ptr WRITING
+    244	01AF					     exit_third:
+    245	01AF  CB					     ret
+    246	01B0				     THIRD_ACTION ENDP
+    247
+    248	01B0				     ITOA PROC FAR
+    249	01B0  0B DB				     or	bx, bx
+    250	01B2  79 08				     jns positive_number
+    251	01B4  33 C0				     xor ax, ax
+    252	01B6  B0 2D				     mov al, '-'
+    253	01B8  CD 29				     int 29h
+    254	01BA  F7 DB				     neg bx
+    255	01BC					     positive_number:
+    256	01BC  8B C3					     mov ax, bx
+    257	01BE  33 C9					     xor cx, cx	     ; chars number
+    258	01C0  BB 000A					     mov bx, 10	     ; diviator
+    259	01C3						     itoa_loop:
+    260	01C3  33 D2						     xor dx, dx	     ; remainder stores	here
+    261	01C5  F7 F3						     div bx
+    262	01C7  80 C2 30						     add dl, '0'
+    263	01CA  52						     push dx
+    264	01CB  41						     inc cx
+    265	01CC  85 C0						     test ax, ax
+    266	01CE  75 F3						     jnz itoa_loop
+    267	01D0						     output:
+    268	01D0  58						     pop ax
+    269	01D1  CD 29						     int 29h
+    270	01D3  E2 FB						     loop output
+    271	01D5  CB					     ret
+    272	01D6					     ITOA ENDP
+    273
+    274	01D6				     ATOI PROC FAR
+    275	01D6  33 C0				     xor ax, ax		     ; result
+    276	01D8  33 C9				     xor cx, cx		     ; char
+    277	01DA  33 FF				     xor di, di		     ; 10
+    278	01DC  BF 000A				     mov di, 10
+    279	01DF  33 F6				     xor si, si		     ; sign
+    280
+    281	01E1					     skip_whitespaces:
+    282	01E1  8A 0F					     mov cl, BYTE PTR [bx]
+    283	01E3  80 F9 20					     cmp cl, 32	     ; ' '
+    284	01E6  74 08					     je	step
+    285	01E8  80 F9 09					     cmp cl , 9	     ; '\t'
+Turbo Assembler	 Version 4.1	    12/25/19 19:12:33	    Page 6
+3.asm
+
+
+
+    286	01EB  74 03					     je	step
+    287	01ED  EB 04 90					     jmp sign_check
+    288	01F0					     step:
+    289	01F0  43					     inc bx
+    290	01F1  EB EE					     jmp skip_whitespaces
+    291	01F3					     sign_check:
+    292	01F3  80 F9 2D					     cmp cl, 45	     ; '-'
+    293	01F6  74 08					     je	minus
+    294	01F8  80 F9 2B					     cmp cl, 43	     ; '+'
+    295	01FB  74 06					     je	plus
+    296	01FD  EB 08 90					     jmp atoi_loop
+    297	0200					     minus:
+    298	0200  BE 0001					     mov si, 1
+    299	0203						     plus:
+    300	0203  43						     inc bx
+    301	0204  EB 01 90						     jmp atoi_loop
+    302	0207					     atoi_loop:
+    303	0207  8A 0F					     mov cl, BYTE PTR [bx]
+    304	0209  80 F9 30					     cmp cl, 48	     ; '0'
+    305	020C  7C 13					     jl	atoi_end
+    306	020E  80 F9 39					     cmp cl, 57	     ; '9'
+    307	0211  7F 0E					     jg	atoi_end
+    308	0213  F7 EF					     imul di
+    309	0215  70 17					     jo	error
+    310	0217  80 E9 30					     sub cl, 48
+    311	021A  03 C1					     add ax, cx
+    312	021C  70 10					     jo	error
+    313	021E  43					     inc bx
+    314	021F  EB E6					     jmp atoi_loop
+    315	0221					     atoi_end:
+    316	0221  83 FE 01					     cmp si, 1
+    317	0224  74 03					     je	make_neg
+    318	0226  EB 15 90					     jmp exit_atoi
+    319	0229					     make_neg:
+    320	0229  F7 D8					     neg ax
+    321	022B  EB 10 90					     jmp exit_atoi
+    322	022E					     error:
+    323	022E  C6 06 006Fr 01				     mov was_overflow, 1
+    324	0233  33 D2					     xor dx, dx
+    325	0235  BA 0038r					     lea dx, overflowError
+    326	0238  0E E8 0007 90				     call far ptr WRITING
+    327	023D					     exit_atoi:
+    328	023D  CB					     ret
+    329	023E				     ATOI ENDP
+    330
+    331	023E				     READING PROC FAR
+    332	023E  B4 0A				     mov ah, 10
+    333	0240  CD 21				     int 21h
+    334	0242  CB				     ret
+    335	0243				     READING ENDP
+    336
+    337	0243				     WRITING PROC FAR
+    338	0243  B4 09				     mov ah, 9
+    339	0245  CD 21				     int 21h
+    340	0247  CB				     ret
+    341	0248				     WRITING ENDP
+    342	0248			     CSEG ENDS
+Turbo Assembler	 Version 4.1	    12/25/19 19:12:33	    Page 7
+3.asm
+
+
+
+    343				     END MAIN
+Turbo Assembler	 Version 4.1	    12/25/19 19:12:33	    Page 8
+Symbol Table
+
+
+
+
+Symbol Name			  Type	 Value
+
+??DATE				  Text	 "12/25/19"
+??FILENAME			  Text	 "3	  "
+??TIME				  Text	 "19:12:33"
+??VERSION			  Number 040A
+@CPU				  Text	 0101H
+@CURSEG				  Text	 CSEG
+@FILENAME			  Text	 3
+@WORDSIZE			  Text	 2
+ATOI				  Far	 CSEG:01D6
+ATOI_END			  Near	 CSEG:0221
+ATOI_LOOP			  Near	 CSEG:0207
+AX_POSITIVE			  Near	 CSEG:014A
+BX_POSITIVE			  Near	 CSEG:0154
+ERROR				  Near	 CSEG:022E
+EXIT_ATOI			  Near	 CSEG:023D
+EXIT_FIRST			  Near	 CSEG:012C
+EXIT_SECOND			  Near	 CSEG:0182
+EXIT_THIRD			  Near	 CSEG:01AF
+FIRST				  Near	 CSEG:006E
+FIRST_ACTION			  Far	 CSEG:00EA
+ITOA				  Far	 CSEG:01B0
+ITOA_LOOP			  Near	 CSEG:01C3
+LABEL_LOOP_THIRD		  Near	 CSEG:0197
+LOOP_LABEL			  Near	 CSEG:00F8
+LOOP_NEGRESULT			  Near	 CSEG:015D
+MAIN				  Far	 CSEG:0000
+MAIN_EXIT			  Near	 CSEG:00C1
+MAKE_NEG			  Near	 CSEG:0229
+MAYBE_FIRST			  Near	 CSEG:0062
+MINUS				  Near	 CSEG:0200
+OUTPUT				  Near	 CSEG:01D0
+OVERFLOWERROR			  Byte	 DSEG:0038
+OVERFLOW_ERROR_FIRST		  Near	 CSEG:011D
+OVERFLOW_ERROR_MAIN		  Near	 CSEG:00A7
+OVERFLOW_ERROR_SECOND		  Near	 CSEG:0164
+OVERFLOW_ERROR_THIRD		  Near	 CSEG:01A0
+PLUS				  Near	 CSEG:0203
+POSITIVE_NUMBER			  Near	 CSEG:01BC
+READING				  Far	 CSEG:023E
+REMAINDER			  Word	 DSEG:006D
+REMAINDERSTR			  Byte	 DSEG:0020
+RESULT				  Word	 DSEG:006B
+RESULTSTR			  Byte	 DSEG:0016
+SECOND				  Near	 CSEG:0081
+SECOND_ACTION			  Far	 CSEG:012D
+SIGN_CHECK			  Near	 CSEG:01F3
+SKIP_WHITESPACES		  Near	 CSEG:01E1
+STEP				  Near	 CSEG:01F0
+THIRD				  Near	 CSEG:0094
+THIRD_ACTION			  Far	 CSEG:0183
+WAS_OVERFLOW			  Byte	 DSEG:006F
+WRITE_OUTPUT			  Far	 CSEG:00C2
+WRITING				  Far	 CSEG:0243
+WRITING_OUTPUT			  Near	 CSEG:00B9
+Turbo Assembler	 Version 4.1	    12/25/19 19:12:33	    Page 9
+Symbol Table
+
+
+
+X				  Word	 DSEG:0067
+XBUFFER				  Byte	 DSEG:0057
+XSTR				  Byte	 DSEG:0000
+Y				  Word	 DSEG:0069
+YBUFFER				  Byte	 DSEG:005F
+YSTR				  Byte	 DSEG:000B
+ZERODIVISION			  Byte	 DSEG:0048
+ZERODIVISION_LABEL		  Near	 CSEG:0173
+
+Groups & Segments		  Bit Size Align  Combine Class
+
+CSEG				  16  0248 Para	  Public  CODE
+DSEG				  16  0070 Para	  Public  DATA
+STSEG				  16  0040 Para	  Stack	  STACK
+

@@ -1,0 +1,64 @@
+Turbo Assembler	 Version 4.1	    12/25/19 19:12:30	    Page 1
+1.asm
+
+
+
+      1	0000			     STSEG SEGMENT PARA	STACK 'STACK'
+      2	0000  40*(53 54	41 43 4B)    DB	64 DUP ( 'STACK' )
+      3	0140			     STSEG ENDS
+      4
+      5	0000			     DSEG SEGMENT PARA PUBLIC 'DATA'
+      6	0000  0A 14 1E 28	     SOURCE DB 10, 20, 30, 40
+      7	0004  04*(3F)		     DEST DB 4 DUP ( '?' )
+      8	0008			     DSEG ENDS
+      9
+     10	0000			     CSEG SEGMENT PARA PUBLIC 'CODE'
+     11	0000			     MAIN PROC FAR
+     12				     ASSUME CS:	CSEG, DS: DSEG,	SS: STSEG
+     13	0000  1E		     PUSH DS
+     14	0001  B8 0000		     MOV AX, 0;
+     15	0004  50		     PUSH AX
+     16	0005  B8 0000s		     MOV AX, DSEG
+     17	0008  8E D8		     MOV DS, AX
+     18	000A  C6 06 0004r 00	     MOV DEST, 0
+     19	000F  C6 06 0005r 00	     MOV DEST+1, 0
+     20	0014  C6 06 0006r 00	     MOV DEST+2, 0
+     21	0019  C6 06 0007r 00	     MOV DEST+3, 0
+     22	001E  A0 0000r		     MOV AL, SOURCE
+     23	0021  A2 0007r		     MOV DEST+3, AL
+     24	0024  A0 0001r		     MOV AL, SOURCE+1
+     25	0027  A2 0006r		     MOV DEST+2, AL
+     26	002A  A0 0002r		     MOV AL, SOURCE+2
+     27	002D  A2 0005r		     MOV DEST+1, AL
+     28	0030  A0 0003r		     MOV AL, SOURCE+3
+     29	0033  A2 0004r		     MOV DEST, AL
+     30	0036  CB		     RET
+     31	0037			     MAIN ENDP
+     32	0037			     CSEG ENDS
+     33				     END MAIN
+Turbo Assembler	 Version 4.1	    12/25/19 19:12:30	    Page 2
+Symbol Table
+
+
+
+
+Symbol Name			  Type	 Value
+
+??DATE				  Text	 "12/25/19"
+??FILENAME			  Text	 "1	  "
+??TIME				  Text	 "19:12:30"
+??VERSION			  Number 040A
+@CPU				  Text	 0101H
+@CURSEG				  Text	 CSEG
+@FILENAME			  Text	 1
+@WORDSIZE			  Text	 2
+DEST				  Byte	 DSEG:0004
+MAIN				  Far	 CSEG:0000
+SOURCE				  Byte	 DSEG:0000
+
+Groups & Segments		  Bit Size Align  Combine Class
+
+CSEG				  16  0037 Para	  Public  CODE
+DSEG				  16  0008 Para	  Public  DATA
+STSEG				  16  0140 Para	  Stack	  STACK
+

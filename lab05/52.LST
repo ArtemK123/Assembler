@@ -1,0 +1,353 @@
+Turbo Assembler	 Version 4.1	    12/25/19 19:12:36	    Page 1
+52.asm
+
+
+
+      1				     include m_basic.asm
+1     2				     EXIT_PROGRAM MACRO
+1     3					     mov ax, 4c00h
+1     4					     int 21h
+1     5				     ENDM
+1     6
+1     7				     WRITING MACRO string
+1     8					     push ax
+1     9					     lea dx, string
+1    10					     mov ah, 9
+1    11					     int 21h
+1    12					     pop ax
+1    13				     ENDM
+1    14
+1    15				     PRINT_CHAR	MACRO chr
+1    16					     push ax
+1    17					     mov ax, chr
+1    18					     int 29h
+1    19					     pop ax
+1    20				     ENDM
+1    21
+1    22				     READING MACRO buffer
+1    23					     push ax
+1    24					     lea dx, buffer
+1    25					     mov ah, 10
+1    26					     int 21h
+1    27					     pop ax
+1    28					     PRINT_CHAR	10
+1    29				     ENDM
+1    30
+1    31				     ATOI MACRO	buffer
+1    32					     LOCAL @@end_label
+1    33					     LOCAL @@error
+1    34					     LOCAL @@loop_label
+1    35					     LOCAL skip_whitespaces, step, sign_check, minus, plus, atoi_end, make_neg
+1    36
+1    37					     lea bx, buffer + 2
+1    38					     xor ax, ax		     ; result
+1    39					     xor cx, cx		     ; char
+1    40					     xor di, di		     ; 10
+1    41					     mov di, 10
+1    42					     xor si, si		     ; sign
+1    43
+1    44					     skip_whitespaces:
+1    45						     mov cl, BYTE PTR [bx]
+1    46						     cmp cl, 32	     ; ' '
+1    47						     je	step
+1    48						     cmp cl , 9	     ; '\t'
+1    49						     je	step
+1    50						     jmp sign_check
+1    51					     step:
+1    52						     inc bx
+1    53						     jmp skip_whitespaces
+1    54					     sign_check:
+1    55						     cmp cl, 45	     ; '-'
+1    56						     je	minus
+1    57						     cmp cl, 43	     ; '+'
+Turbo Assembler	 Version 4.1	    12/25/19 19:12:36	    Page 2
+52.asm
+
+
+
+1    58						     je	plus
+1    59						     jmp @@loop_label
+1    60					     minus:
+1    61						     mov si, 1
+1    62						     plus:
+1    63							     inc bx
+1    64							     jmp @@loop_label
+1    65					     @@loop_label:
+1    66						     mov cl, BYTE PTR [bx]
+1    67						     cmp cl, 48	     ; '0'
+1    68						     jl	atoi_end
+1    69						     cmp cl, 57	     ; '9'
+1    70						     jg	atoi_end
+1    71						     imul di
+1    72						     jo	@@error
+1    73						     sub cl, 48
+1    74						     add ax, cx
+1    75						     jo	@@error
+1    76						     inc bx
+1    77						     jmp @@loop_label
+1    78					     atoi_end:
+1    79						     cmp si, 1
+1    80						     je	make_neg
+1    81						     jmp @@end_label
+1    82					     make_neg:
+1    83						     neg ax
+1    84						     jmp @@end_label
+1    85					     @@error:
+1    86						     mov was_overflow, 1
+1    87						     WRITING overflowError
+1    88					     @@end_label:
+1    89				     ENDM
+1    90
+1    91				     ITOA MACRO	number
+1    92					     LOCAL @@loop_label
+1    93					     LOCAL positive_number, output
+1    94					     mov bx, number
+1    95					     or	bx, bx
+1    96					     jns positive_number
+1    97					     xor ax, ax
+1    98					     mov al, '-'
+1    99					     int 29h
+1   100					     neg bx
+1   101					     positive_number:
+1   102						     mov ax, bx
+1   103						     xor cx, cx	     ; chars number
+1   104						     mov bx, 10	     ; diviator
+1   105					     @@loop_label:
+1   106						     xor dx, dx	     ; remainder stores	here
+1   107						     div bx
+1   108						     add dl, '0'
+1   109						     push dx
+1   110						     inc cx
+1   111						     test ax, ax
+1   112						     jnz @@loop_label
+1   113					     output:
+1   114						     pop ax
+Turbo Assembler	 Version 4.1	    12/25/19 19:12:36	    Page 3
+52.asm
+
+
+
+1   115						     int 29h
+1   116						     loop output
+1   117				     ENDM
+    118
+    119				     ; STACK SEGMENT
+    120	0000			     STSEG SEGMENT PARA	STACK "STACK"
+    121	0000  40*(00)			     DB	64 DUP (0)
+    122	0040			     STSEG ENDS
+    123
+    124				     ; DATA SEGMENT
+    125	0000			     DSEG SEGMENT PARA PUBLIC "DATA"
+    126	0000  4E 75 6D 62 65 72	20+	     overflowError db "Number is too big. From:	-32768 to 32767$"
+    127	      69 73 20 74 6F 6F	20+
+    128	      62 69 67 2E 20 46	72+
+    129	      6F 6D 3A 20 2D 33	32+
+    130	      37 36 38 20 74 6F	20+
+    131	      33 32 37 36 37 24
+    132	0029  45 6E 74 65 72 20	61+	     startStr db "Enter	a number : $"
+    133	      20 6E 75 6D 62 65	72+
+    134	      20 3A 20 24
+    135	003B  4E 75 6D 62 65 72	20+	 inputError db "Number has incorrect chars.", 10, "$"
+    136	      68 61 73 20 69 6E	63+
+    137	      6F 72 72 65 63 74	20+
+    138	      63 68 61 72 73 2E	0A+
+    139	      24
+    140	0058  07			     bufferSize	DB 7	     ; 6 chars + RETURN
+    141	0059  00			     inputLength DB 0		     ; number of read chars
+    142	005A  07*(3F)			     buffer DB 7 DUP('?')    ; actual buffer
+    143	0061  00			 was_overflow db 0
+    144	0062			     DSEG ENDS
+    145
+    146				     ; CODE SEGMENT
+    147	0000			     CSEG SEGMENT PARA PUBLIC "CODE"
+    148	0000				     MAIN PROC FAR
+    149						     ASSUME cs:	CSEG, ds: DSEG,	ss:STSEG
+    150
+    151	0000  1E				     push ds
+    152	0001  33 C0				     xor ax, ax
+    153	0003  50				     push ax
+    154	0004  B8 0000s				     mov ax, DSEG
+    155	0007  8E D8				     mov ds, ax
+    156
+    157						     WRITING startStr
+1   158	0009  50			     push ax
+1   159	000A  BA 0029r			     lea dx, startStr
+1   160	000D  B4 09			     mov ah, 9
+1   161	000F  CD 21			     int 21h
+1   162	0011  58			     pop ax
+    163						     READING bufferSize
+1   164	0012  50			     push ax
+1   165	0013  BA 0058r			     lea dx, bufferSize
+1   166	0016  B4 0A			     mov ah, 10
+1   167	0018  CD 21			     int 21h
+1   168	001A  58			     pop ax
+1   169					     PRINT_CHAR	10
+2   170	001B  50			     push ax
+2   171	001C  B8 000A			     mov ax, 10
+Turbo Assembler	 Version 4.1	    12/25/19 19:12:36	    Page 4
+52.asm
+
+
+
+2   172	001F  CD 29			     int 29h
+2   173	0021  58			     pop ax
+    174
+    175						     ATOI bufferSize
+1   176	0022  BB 005Ar			     lea bx, bufferSize	+ 2
+1   177	0025  33 C0			     xor ax, ax		     ; result
+1   178	0027  33 C9			     xor cx, cx		     ; char
+1   179	0029  33 FF			     xor di, di		     ; 10
+1   180	002B  BF 000A			     mov di, 10
+1   181	002E  33 F6			     xor si, si		     ; sign
+1   182	0030				     ??0003:
+1   183	0030  8A 0F				     mov cl, BYTE PTR [bx]
+1   184	0032  80 F9 20				     cmp cl, 32	     ; ' '
+1   185	0035  74 08				     je	??0004
+1   186	0037  80 F9 09				     cmp cl , 9	     ; '\t'
+1   187	003A  74 03				     je	??0004
+1   188	003C  EB 04 90				     jmp ??0005
+1   189	003F				     ??0004:
+1   190	003F  43				     inc bx
+1   191	0040  EB EE				     jmp ??0003
+1   192	0042				     ??0005:
+1   193	0042  80 F9 2D				     cmp cl, 45	     ; '-'
+1   194	0045  74 08				     je	??0006
+1   195	0047  80 F9 2B				     cmp cl, 43	     ; '+'
+1   196	004A  74 06				     je	??0007
+1   197	004C  EB 08 90				     jmp ??0002
+1   198	004F				     ??0006:
+1   199	004F  BE 0001				     mov si, 1
+1   200	0052					     ??0007:
+1   201	0052  43					     inc bx
+1   202	0053  EB 01 90					     jmp ??0002
+1   203	0056				     ??0002:
+1   204	0056  8A 0F				     mov cl, BYTE PTR [bx]
+1   205	0058  80 F9 30				     cmp cl, 48	     ; '0'
+1   206	005B  7C 13				     jl	??0008
+1   207	005D  80 F9 39				     cmp cl, 57	     ; '9'
+1   208	0060  7F 0E				     jg	??0008
+1   209	0062  F7 EF				     imul di
+1   210	0064  70 17				     jo	??0001
+1   211	0066  80 E9 30				     sub cl, 48
+1   212	0069  03 C1				     add ax, cx
+1   213	006B  70 10				     jo	??0001
+1   214	006D  43				     inc bx
+1   215	006E  EB E6				     jmp ??0002
+1   216	0070				     ??0008:
+1   217	0070  83 FE 01				     cmp si, 1
+1   218	0073  74 03				     je	??0009
+1   219	0075  EB 14 90				     jmp ??0000
+1   220	0078				     ??0009:
+1   221	0078  F7 D8				     neg ax
+1   222	007A  EB 0F 90				     jmp ??0000
+1   223	007D				     ??0001:
+1   224	007D  C6 06 0061r 01			     mov was_overflow, 1
+1   225						     WRITING overflowError
+2   226	0082  50			     push ax
+2   227	0083  BA 0000r			     lea dx, overflowError
+2   228	0086  B4 09			     mov ah, 9
+Turbo Assembler	 Version 4.1	    12/25/19 19:12:36	    Page 5
+52.asm
+
+
+
+2   229	0088  CD 21			     int 21h
+2   230	008A  58			     pop ax
+1   231	008B				     ??0000:
+    232	008B  80 3E 0061r 01			     cmp was_overflow, 1
+    233	0090  74 2F			     je	overflow_error
+    234
+    235	0092  05 004E				     add ax, 78
+    236	0095  70 2A				     jo	overflow_error
+    237						     ITOA ax
+1   238	0097  8B D8			     mov bx, ax
+1   239	0099  0B DB			     or	bx, bx
+1   240	009B  79 08			     jns ??000B
+1   241	009D  33 C0			     xor ax, ax
+1   242	009F  B0 2D			     mov al, '-'
+1   243	00A1  CD 29			     int 29h
+1   244	00A3  F7 DB			     neg bx
+1   245	00A5				     ??000B:
+1   246	00A5  8B C3				     mov ax, bx
+1   247	00A7  33 C9				     xor cx, cx	     ; chars ax
+1   248	00A9  BB 000A				     mov bx, 10	     ; diviator
+1   249	00AC				     ??000A:
+1   250	00AC  33 D2				     xor dx, dx	     ; remainder stores	here
+1   251	00AE  F7 F3				     div bx
+1   252	00B0  80 C2 30				     add dl, '0'
+1   253	00B3  52				     push dx
+1   254	00B4  41				     inc cx
+1   255	00B5  85 C0				     test ax, ax
+1   256	00B7  75 F3				     jnz ??000A
+1   257	00B9				     ??000C:
+1   258	00B9  58				     pop ax
+1   259	00BA  CD 29				     int 29h
+1   260	00BC  E2 FB				     loop ??000C
+    261	00BE  EB 0A 90				     jmp end_main
+    262	00C1					     overflow_error:
+    263							     WRITING overflowError
+1   264	00C1  50			     push ax
+1   265	00C2  BA 0000r			     lea dx, overflowError
+1   266	00C5  B4 09			     mov ah, 9
+1   267	00C7  CD 21			     int 21h
+1   268	00C9  58			     pop ax
+    269	00CA					     end_main:
+    270	00CA  CB					     ret
+    271	00CB				     MAIN ENDP
+    272	00CB			     CSEG ENDS
+    273				     END MAIN
+Turbo Assembler	 Version 4.1	    12/25/19 19:12:36	    Page 6
+Symbol Table
+
+
+
+
+Symbol Name			  Type	 Value
+
+??0000				  Near	 CSEG:008B
+??0001				  Near	 CSEG:007D
+??0002				  Near	 CSEG:0056
+??0003				  Near	 CSEG:0030
+??0004				  Near	 CSEG:003F
+??0005				  Near	 CSEG:0042
+??0006				  Near	 CSEG:004F
+??0007				  Near	 CSEG:0052
+??0008				  Near	 CSEG:0070
+??0009				  Near	 CSEG:0078
+??000A				  Near	 CSEG:00AC
+??000B				  Near	 CSEG:00A5
+??000C				  Near	 CSEG:00B9
+??DATE				  Text	 "12/25/19"
+??FILENAME			  Text	 "52	  "
+??TIME				  Text	 "19:12:36"
+??VERSION			  Number 040A
+@CPU				  Text	 0101H
+@CURSEG				  Text	 CSEG
+@FILENAME			  Text	 52
+@WORDSIZE			  Text	 2
+BUFFER				  Byte	 DSEG:005A
+BUFFERSIZE			  Byte	 DSEG:0058
+END_MAIN			  Near	 CSEG:00CA
+INPUTERROR			  Byte	 DSEG:003B
+INPUTLENGTH			  Byte	 DSEG:0059
+MAIN				  Far	 CSEG:0000
+OVERFLOWERROR			  Byte	 DSEG:0000
+OVERFLOW_ERROR			  Near	 CSEG:00C1
+STARTSTR			  Byte	 DSEG:0029
+WAS_OVERFLOW			  Byte	 DSEG:0061
+
+Macro Name
+
+ATOI
+EXIT_PROGRAM
+ITOA
+PRINT_CHAR
+READING
+WRITING
+
+Groups & Segments		  Bit Size Align  Combine Class
+
+CSEG				  16  00CB Para	  Public  CODE
+DSEG				  16  0062 Para	  Public  DATA
+STSEG				  16  0040 Para	  Stack	  STACK
+

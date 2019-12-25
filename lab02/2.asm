@@ -119,7 +119,6 @@ CSEG SEGMENT PARA PUBLIC "CODE"
 			sub cl, 48
 			add ax, cx
 			jo exit_atoi
-			;jo error
 			inc bx
 			jmp atoi_loop
 		atoi_end:
@@ -130,9 +129,6 @@ CSEG SEGMENT PARA PUBLIC "CODE"
 			neg ax
 			jmp exit_atoi
 		error:
-		;	xor dx, dx
-		;	lea dx, buffError
-		;	call NEAR PTR WRITING
 		exit_atoi:
 			ret
 		ATOI ENDP
